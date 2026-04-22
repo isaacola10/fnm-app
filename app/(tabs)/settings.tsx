@@ -1,4 +1,4 @@
-import {View, Text, Pressable} from 'react-native'
+import {View, Text, Pressable, Alert} from 'react-native'
 import React from 'react'
 import {SafeAreaView as RNSafeAreaView} from "react-native-safe-area-context";
 import {styled} from "nativewind";
@@ -11,8 +11,13 @@ const Settings = () => {
     const router = useRouter()
 
     const handleLogout = async () => {
-        await signOut()
-        router.replace('/(auth)/sign-in')
+        try {
+            await signOut()
+            router.replace('/(auth)/sign-in')
+        } catch (error) {
+            console.error('Sign out failed:', error)
+            Alert.alert('Logout failed', 'An error occurred while signing out. Please try again.')
+        }
     }
 
     return (

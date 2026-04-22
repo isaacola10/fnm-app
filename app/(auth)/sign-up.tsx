@@ -46,8 +46,25 @@ export default function SignUp() {
         const { error } = await signUp.password({ emailAddress, password })
         if (error) return
 
-        await signUp.verifications.sendEmailCode()
-        setStep('verify')
+        if (signUp.status === 'complete') {
+            await signUp.finalize({
+                navigate: ({ session }) => {
+                    if (session?.currentTask) return
+                    router.replace('/(tabs)' as Href)
+                },
+            })
+            return
+        }
+
+        if (
+            signUp.status === 'missing_requirements' &&
+            signUp.unverifiedFields.includes('email_address') &&
+            signUp.missingFields.length === 0
+        ) {
+            const { error: sendError } = await signUp.verifications.sendEmailCode()
+            if (sendError) return
+            setStep('verify')
+        }
     }
 
     const handleVerify = async () => {

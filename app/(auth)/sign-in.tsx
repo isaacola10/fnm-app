@@ -34,6 +34,12 @@ const SignIn = () => {
 
     const loading = fetchStatus === 'fetching'
 
+    const factors = signIn.supportedSecondFactors ?? []
+    const mfaFactor: 'email' | 'phone' | null =
+        factors.some((f) => f.strategy === 'email_code') ? 'email' :
+        factors.some((f) => f.strategy === 'phone_code') ? 'phone' :
+        null
+
     const handleSubmit = async () => {
         const { error } = await signIn.password({ emailAddress, password })
         if (error) return
@@ -45,13 +51,21 @@ const SignIn = () => {
                     router.replace('/(tabs)' as Href)
                 },
             })
-        } else if (signIn.status === 'needs_client_trust') {
-            await signIn.mfa.sendEmailCode()
+        } else if (signIn.status === 'needs_client_trust' || signIn.status === 'needs_second_factor') {
+            if (mfaFactor === 'phone') {
+                await signIn.mfa.sendPhoneCode()
+            } else if (mfaFactor === 'email') {
+                await signIn.mfa.sendEmailCode()
+            }
         }
     }
 
     const handleVerify = async () => {
-        await signIn.mfa.verifyEmailCode({ code })
+        if (mfaFactor === 'phone') {
+            await signIn.mfa.verifyPhoneCode({ code })
+        } else {
+            await signIn.mfa.verifyEmailCode({ code })
+        }
 
         if (signIn.status === 'complete') {
             await signIn.finalize({
@@ -77,7 +91,7 @@ const SignIn = () => {
         </View>
     )
 
-    if (signIn.status === 'needs_client_trust') {
+    if (signIn.status === 'needs_client_trust' || signIn.status === 'needs_second_factor') {
         return (
             <SafeAreaView className="auth-safe-area">
                 <KeyboardAvoidingView
@@ -92,9 +106,15 @@ const SignIn = () => {
                         <View className="auth-content">
                             <BrandBlock />
 
-                            <Text className="auth-title">Check your email</Text>
+                            <Text className="auth-title">
+                                {mfaFactor === 'phone' ? 'Check your phone' : mfaFactor === 'email' ? 'Check your email' : 'Verify your identity'}
+                            </Text>
                             <Text className="auth-subtitle">
-                                Enter the verification code we sent to {emailAddress}
+                                {mfaFactor === 'phone'
+                                    ? 'Enter the verification code we sent to your phone number'
+                                    : mfaFactor === 'email'
+                                    ? `Enter the verification code we sent to ${emailAddress}`
+                                    : 'No supported verification method found. Please contact support.'}
                             </Text>
 
                             <View className="auth-card">
@@ -125,8 +145,8 @@ const SignIn = () => {
 
                                     <Pressable
                                         className="auth-secondary-button"
-                                        onPress={() => signIn.mfa.sendEmailCode()}
-                                        disabled={loading}
+                                        onPress={() => mfaFactor === 'phone' ? signIn.mfa.sendPhoneCode() : signIn.mfa.sendEmailCode()}
+                                        disabled={loading || mfaFactor === null}
                                     >
                                         <Text className="auth-secondary-button-text">Resend code</Text>
                                     </Pressable>
