@@ -52,9 +52,14 @@ const SignIn = () => {
                 },
             })
         } else if (signIn.status === 'needs_client_trust' || signIn.status === 'needs_second_factor') {
-            if (mfaFactor === 'phone') {
+            const freshFactors = signIn.supportedSecondFactors ?? []
+            const currentFactor: 'email' | 'phone' | null =
+                freshFactors.some((f) => f.strategy === 'email_code') ? 'email' :
+                freshFactors.some((f) => f.strategy === 'phone_code') ? 'phone' :
+                null
+            if (currentFactor === 'phone') {
                 await signIn.mfa.sendPhoneCode()
-            } else if (mfaFactor === 'email') {
+            } else if (currentFactor === 'email') {
                 await signIn.mfa.sendEmailCode()
             }
         }
@@ -145,7 +150,11 @@ const SignIn = () => {
 
                                     <Pressable
                                         className="auth-secondary-button"
-                                        onPress={() => mfaFactor === 'phone' ? signIn.mfa.sendPhoneCode() : signIn.mfa.sendEmailCode()}
+                                        onPress={() => {
+                                            const ff = signIn.supportedSecondFactors ?? []
+                                            if (ff.some((f) => f.strategy === 'phone_code')) signIn.mfa.sendPhoneCode()
+                                            else if (ff.some((f) => f.strategy === 'email_code')) signIn.mfa.sendEmailCode()
+                                        }}
                                         disabled={loading || mfaFactor === null}
                                     >
                                         <Text className="auth-secondary-button-text">Resend code</Text>
